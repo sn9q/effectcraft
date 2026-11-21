@@ -19,7 +19,7 @@
 //! shared-memory threads, so this works on stable Rust.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -62,6 +62,16 @@ impl Offload for WorkerOffload {
         for p in &req.files {
             if let Some((d, version)) = crate::files::get_versioned(p) {
                 files.push(&js_sys::Array::of3(&JsValue::from_str(p), &js_sys::Uint8Array::from(&d[..]), &JsValue::from_f64(version as f64)));
+            }
+        }
+        // The page's font files (added with `effectcraft.addFile` or dropped) go along: a worker starts with
+        // the bundled fonts only, so a render drew Arabic text as "no glyph" boxes the viewer showed fine.
+        for (p, _, _, _) in crate::files::STORE.files() {
+            if crate::persist::is_font(&p)
+                && !req.files.contains(&p)
+                && let Some((d, version)) = crate::files::get_versioned(&p)
+            {
+                files.push(&js_sys::Array::of3(&JsValue::from_str(&p), &js_sys::Uint8Array::from(&d[..]), &JsValue::from_f64(version as f64)));
             }
         }
         let json = serde_json::to_string(&req).map_err(|e| e.to_string())?;
@@ -173,6 +183,11 @@ pub fn worker_init() {
     SESSION.with(|c| *c.borrow_mut() = Some(s));
 }
 
+thread_local! {
+    /// Font files this worker has registered.
+    static WORKER_FONTS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
 /// The worker's media pool (footage files sent by the page).
 pub fn pool() -> Arc<effectcraft_media::MediaPool> {
     POOL.with(|p| p.borrow().clone()).unwrap_or_else(|| Arc::new(effectcraft_media::MediaPool::new()))
@@ -183,6 +198,10 @@ pub fn pool() -> Arc<effectcraft_media::MediaPool> {
 pub fn worker_file(path: String, bytes: js_sys::Uint8Array) {
     let data: Arc<[u8]> = bytes.to_vec().into();
     crate::files::STORE.put_file(&path, data.clone(), false);
+    // A font joins this worker's font list once (the worker is reused across jobs).
+    if crate::persist::is_font(&path) && WORKER_FONTS.with(|f| f.borrow_mut().insert(path.clone())) {
+        effectcraft_text::fonts::add_font_data(data.to_vec());
+    }
     POOL.with(|p| {
         if let Some(p) = p.borrow().as_ref() {
             p.add_bytes(&path, data);
