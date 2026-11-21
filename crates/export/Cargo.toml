@@ -25,6 +25,11 @@ web-time = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 
+# craft-video's own thread pools need threads. The web build (wasm32, no threads) can't build them
+# (H.264 export failed: "cannot build the 1-thread pool"), so they are native-only. Noema patch.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+craft-video = { workspace = true, features = ["threads"] }
+
 [dev-dependencies]
 exr = { workspace = true }
 gif = { workspace = true }

@@ -33,7 +33,7 @@ craft-frame = { workspace = true }
 craft-media = { workspace = true, features = ["mpegts", "mxf"] }
 craft-media-source = { workspace = true }
 craft-time = { workspace = true }
-craft-video = { workspace = true, features = ["h264-decode", "hevc-decode", "vp9-decode", "vp8-decode", "av1-decode", "prores", "dnx", "mpeg2-decode", "threads"] }
+craft-video = { workspace = true, features = ["h264-decode", "hevc-decode", "vp9-decode", "vp8-decode", "av1-decode", "prores", "dnx", "mpeg2-decode"] }
 filmcraft-frame = { workspace = true }
 filmcraft-color = { workspace = true }
 filmcraft-time = { workspace = true }
@@ -43,6 +43,11 @@ rayon = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
+
+# craft-video's own thread pools need threads. The web build (wasm32, no threads) can't build them
+# (H.264 export failed: "cannot build the 1-thread pool"), so they are native-only. Noema patch.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+craft-video = { workspace = true, features = ["threads"] }
 
 [dev-dependencies]
 # Writes the OpenEXR files of the tests (reading is craft-exr's).
