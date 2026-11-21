@@ -114,9 +114,12 @@ impl WebFrames {
             s.next_id += 1;
             let id = s.next_id;
             let Some(k) = s.workers.iter().position(|w| w.alive && w.busy.is_none()) else { return Err((done, "no idle frame worker".to_string())) };
-            // Footage the worker hasn't got yet.
+            // Footage the worker hasn't got yet, and the page's font files (added with
+            // `effectcraft.addFile` or dropped): a worker starts with the bundled fonts only, so the
+            // viewer drew Arabic text as "no glyph" boxes while the page's own render was right.
             let w = &mut s.workers[k];
-            for p in footage_files(&job.project) {
+            let fonts = crate::files::STORE.files().into_iter().map(|(p, ..)| p).filter(|p| crate::persist::is_font(p));
+            for p in footage_files(&job.project).into_iter().chain(fonts) {
                 let Some((d, version)) = crate::files::get_versioned(&p) else { continue };
                 if w.files.get(&p) == Some(&version) {
                     continue;
