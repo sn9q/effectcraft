@@ -63,6 +63,13 @@ pub fn repaint() {
 
 /// Open a project or import media from table paths (picked or dropped files).
 pub(crate) fn open_or_import(app: &mut EffectcraftApp, paths: Vec<String>) {
+    // Font files (dropped, picked or added with `effectcraft.addFile`) join the font list: on the web
+    // there are no system font folders, so this is how a page gets Arabic, CJK or a brand's fonts.
+    let (fonts, paths): (Vec<String>, Vec<String>) = paths.into_iter().partition(|p| persist::is_font(p));
+    for f in &fonts {
+        let faces = crate::files::get(f).map(|d| effectcraft_text::fonts::add_font_data(d.to_vec()).len()).unwrap_or(0);
+        app.ui.status = if faces > 0 { format!("Added {faces} font face(s) from {f}") } else { format!("{f} is not a font this build can read") };
+    }
     let (projects, media): (Vec<String>, Vec<String>) = paths.into_iter().partition(|p| p.to_ascii_lowercase().ends_with(".ecproj"));
     if let Some(p) = projects.last()
         && let Err(e) = app.session.execute("file.open", json!({"path": p}))
@@ -177,6 +184,7 @@ fn query_value(name: &str) -> Option<String> {
 pub fn session() -> Session {
     let pool = Arc::new(effectcraft_media::MediaPool::new());
     persist::register_media(&pool);
+    persist::register_fonts();
     Session {
         services: Arc::new(files::WebServices),
         footage: pool.clone(),

@@ -26,6 +26,7 @@ effectcraft-media = { workspace = true }
 effectcraft-export = { workspace = true }
 effectcraft-expr = { workspace = true }
 effectcraft-ui-egui = { workspace = true }
+effectcraft-text = { workspace = true }
 egui = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu"] }
 log = { workspace = true }

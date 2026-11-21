@@ -230,12 +230,33 @@ pub fn restore(s: &mut Session) -> bool {
     true
 }
 
+/// Font files by extension.
+pub fn is_font(path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    [".ttf", ".otf", ".ttc", ".otc"].iter().any(|x| p.ends_with(x))
+}
+
+/// Register persisted font files (added in an earlier visit) so their text renders after a reload.
+pub fn register_fonts() -> usize {
+    let mut n = 0;
+    for (path, _, _, persisted) in STORE.files() {
+        if persisted
+            && is_font(&path)
+            && let Some(d) = STORE.file(&path)
+        {
+            n += effectcraft_text::fonts::add_font_data(d.to_vec()).len();
+        }
+    }
+    n
+}
+
 /// Register persisted media with the media pool (so restored projects find their footage).
 pub fn register_media(pool: &effectcraft_media::MediaPool) -> usize {
     let mut n = 0;
     for (path, _, _, persisted) in STORE.files() {
         if persisted
             && !path.to_ascii_lowercase().ends_with(".ecproj")
+            && !is_font(&path)
             && let Some(d) = STORE.file(&path)
         {
             pool.add_bytes(&path, d);
