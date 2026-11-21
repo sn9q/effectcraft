@@ -2607,6 +2607,7 @@ dependencies = [
  "effectcraft-gpu",
  "effectcraft-host",
  "effectcraft-media",
+ "effectcraft-text",
  "effectcraft-ui-egui",
  "eframe",
  "egui",
